@@ -1,0 +1,49 @@
+version: '3.8'
+services:
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  kafka:
+    image: bitnami/kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    depends_on:
+      - zookeeper
+
+  mysql:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: inventory_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db-init.sql:/docker-entrypoint-initdb.d/db-init.sql
+
+  order-service:
+    build:
+      context: ./order-service
+    ports:
+      - "3000:3000"
+    depends_on:
+      - kafka
+      - mysql
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+    depends_on:
+      - kafka
+      - mysql
